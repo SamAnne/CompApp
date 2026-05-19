@@ -10,6 +10,7 @@ export interface FilterOptions {
   minProtein: number;
   maxCarbs: number;
   maxCalories: number;
+  maxGI: number
 }
 
 interface FilterModalProps {
@@ -30,6 +31,7 @@ const filters: Filter[] = [
   { id: 'dairyFree', label: 'Dairy Free' },
   { id: 'vegan', label: 'Vegan' },
   { id: 'lowFodmap', label: 'Low FODMAP' },
+  { id: 'lowGI', label: 'Low GI'},
   { id: 'keto', label: 'Keto' },
 ];
 
@@ -39,8 +41,8 @@ export default function FilterModal({
   activeFilters, 
   onToggleFilter, 
   onClearFilters,
-  filterOptions,        // ✅ use from props, not local state
-  onFilterOptionsChange // ✅ use from props, not local state
+  filterOptions,
+  onFilterOptionsChange
 }: FilterModalProps) {
   const [filterSearch, setFilterSearch] = useState('');
 
@@ -121,6 +123,23 @@ export default function FilterModal({
             <div className="d-flex justify-content-between" style={{ fontSize: '0.8rem', color: '#6c757d' }}>
               <span>0</span>
               <span>1500</span>
+            </div>
+          </div>
+        )}
+
+        {/* GI slider */}
+        {activeFilters.includes('lowGI') && (
+          <div className="mt-3 p-3" style={{ background: '#f8f9fa', borderRadius: '8px' }}>
+            <Form.Label>Minimum GI: <strong>{filterOptions.maxGI}</strong></Form.Label>
+            <Form.Range
+              min={0}
+              max={55}
+              value={filterOptions.maxGI}
+              onChange={(e) => onFilterOptionsChange({ ...filterOptions, maxGI: Number(e.target.value) })}
+            />
+            <div className="d-flex justify-content-between" style={{ fontSize: '0.8rem', color: '#6c757d' }}>
+              <span>0</span>
+              <span>55</span>
             </div>
           </div>
         )}
