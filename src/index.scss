@@ -1,0 +1,36 @@
+$button-color: #546B41;
+$button-text: #FFFFFF;
+$button-padding: 1rem;
+$button-width: 25%;
+$button-size: 1.25rem;
+
+$nav-button-color: #546B41;
+$nav-button-padding: 1rem;
+$nav-button-width: 25%;
+$nav-button-size: 1.25rem;
+
+
+$header-text-size: 64px;
+
+
+.header-text{
+  font-size: $header-text-size;
+}
+
+.styledBtn{
+  background-color: $button-color;
+  border-radius: 0px;
+  color: $button-text;
+  border: none;
+  padding: $button-padding;
+  width: $button-width;
+  font-size: $button-size;
+}
+
+.navBtn{
+  border-radius: 0px;
+  border: 0.25rem solid $nav-button-color;
+  background-color: #FFFFFF;
+  color: $nav-button-color;
+  font-weight: 0.25rem;
+}
