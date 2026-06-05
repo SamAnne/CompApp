@@ -13,7 +13,7 @@ export interface FilterOptions {
   maxGI: number
 }
 
-interface FilterModalProps {
+export interface FilterModalProps {
   show: boolean;
   onHide: () => void;
   activeFilters: string[];
@@ -68,7 +68,7 @@ export default function FilterModal({
             <Button
               key={filter.id}
               size="sm"
-              variant={activeFilters.includes(filter.id) ? 'primary' : 'outline-primary'}
+              variant={activeFilters.includes(filter.id) ? 'dark' : 'outline-dark'}
               onClick={() => onToggleFilter(filter.id)}
             >
               {filter.label}
@@ -146,7 +146,7 @@ export default function FilterModal({
       </Modal.Body>
       <Modal.Footer>
         <Button variant="link" onClick={onClearFilters}>Clear all</Button>
-        <Button variant="primary" onClick={onHide}>Done</Button>
+        <Button className='styledBtn' onClick={onHide}>Done</Button>
       </Modal.Footer>
     </Modal>
   );

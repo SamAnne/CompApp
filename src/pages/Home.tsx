@@ -1,9 +1,15 @@
 import { useState, useRef } from 'react'
-import { Button, Form, InputGroup, Container, Navbar, Nav } from 'react-bootstrap'
-import FilterModal, { type FilterOptions } from '../components/filters';
+import { Button, Form, InputGroup, Container, Navbar, Nav, Card, ListGroup, Accordion, CloseButton } from 'react-bootstrap'
+import FilterModal, { type FilterOptions, FilterModalProps } from '../components/filters';
+import TopNav from '../components/navbar';
 
 interface Nutrient {
   name: string;
+  amount: number;
+  unit: string;
+}
+
+interface Serving {
   amount: number;
   unit: string;
 }
@@ -16,13 +22,16 @@ interface Recipe {
   nutrition: {
     nutrients: Nutrient[];
     properties: Nutrient[];
+    weightPerServing: Serving;
   };
   diets: string[];
   image: string;
   sourceUrl: string;
   lowFodmap: boolean;
-  extendedIngredients: Nutrient[]
+  extendedIngredients: Nutrient[];
+  servings: number
 }
+
 
 function Home() {
   const [showFilters, setShowFilters] = useState(false);
@@ -66,6 +75,10 @@ function Home() {
     }
   }
 
+  function closeRecipe(event: React.MouseEvent<HTMLButtonElement>, recipe: Recipe){
+    setRecipes(prevItems => prevItems.filter(item => item.sourceUrl !== recipe.sourceUrl));
+  }
+
   const displayCards = () => {
     if (recipes.length === 0){
       return null
@@ -77,58 +90,70 @@ function Home() {
 
   const displayInfo = (recipe: Recipe) => {
     let display = [];
-    display.push({key: display.length, html: <img src={recipe.image} alt={recipe.title} style={{width: '15rem', height: '15rem'}}/>});
-    display.push({key: display.length, html: <h2 style={{ fontSize: '1.2rem' }}>{recipe.title}</h2>});
+    display.push({key: display.length, html: <Card.Title style={{ fontSize: '1.2rem' }}>{recipe.title}</Card.Title>});
+    display.push({key: display.length, html: <p className="text-secondary">Total Servings: {recipe.servings}<br/>Serving Size: {recipe.nutrition.weightPerServing.amount}{recipe.nutrition.weightPerServing.unit}</p>});
+    display.push({key: display.length, html: <Card.Header>Filtered Options</Card.Header>})
+    let specsList = [];
     if (activeFilters.includes('highProtein'))
-      display.push({key: display.length, html: <p>Protein: {getNutrient(recipe, 'Protein')}g</p>});
+      specsList.push({key: specsList.length, html: <ListGroup.Item className={filterOptions.minProtein < getNutrient(recipe, 'Protein') ? 'text-bg-success' : 'text-bg-danger'}>Protein: {getNutrient(recipe, 'Protein')}g</ListGroup.Item>});
     if (activeFilters.includes('lowCarb'))
-      display.push({key: display.length, html: <p>Carbs: {getNutrient(recipe, 'Carbohydrates')}g</p>});
+      specsList.push({key: specsList.length, html: <ListGroup.Item className={filterOptions.maxCarbs > getNutrient(recipe, 'Carbohydrates') ? 'text-bg-success' : 'text-bg-danger'}>Carbs: {getNutrient(recipe, 'Carbohydrates')}g</ListGroup.Item>});
     if (activeFilters.includes('lowCalorie'))
-      display.push({key: display.length, html: <p>Calories: {getNutrient(recipe, 'Calories')}</p>});
+      specsList.push({key: specsList.length, html: <ListGroup.Item className={filterOptions.maxCalories > getNutrient(recipe, 'Calories') ? 'text-bg-success' : 'text-bg-danger'}>Calories: {getNutrient(recipe, 'Calories')}</ListGroup.Item>});
     if (activeFilters.includes('glutenFree'))
-      display.push({key: display.length, html: <p>Gluten Free: {recipe.glutenFree ? 'Yes' : 'No'}</p>});
+      specsList.push({key: specsList.length, html: <ListGroup.Item className={recipe.glutenFree ? 'text-bg-success' : 'text-bg-danger'}>Gluten Free: {recipe.glutenFree ? 'Yes' : 'No'}</ListGroup.Item>});
     if (activeFilters.includes('dairyFree'))
-      display.push({key: display.length, html: <p>Dairy Free: {recipe.dairyFree ? 'Yes' : 'No'}</p>});
+      specsList.push({key: specsList.length, html: <ListGroup.Item className={recipe.dairyFree ? 'text-bg-success' : 'text-bg-danger'}>Dairy Free: {recipe.dairyFree ? 'Yes' : 'No'}</ListGroup.Item>});
     if (activeFilters.includes('vegan'))
-      display.push({key: display.length, html: <p>Vegan: {recipe.vegan ? 'Yes' : 'No'}</p>});
+      specsList.push({key: specsList.length, html: <ListGroup.Item className={recipe.vegan ? 'text-bg-success' : 'text-bg-danger'}>Vegan: {recipe.vegan ? 'Yes' : 'No'}</ListGroup.Item>});
     if (activeFilters.includes('keto'))
-      display.push({key: display.length, html: <p>Keto: {recipe.diets.includes('ketogenic') ? 'Yes' : 'No'}</p>});
+      specsList.push({key: specsList.length, html: <ListGroup.Item className={recipe.diets.includes('ketogenic') ? 'text-bg-success' : 'text-bg-danger'}>Keto: {recipe.diets.includes('ketogenic') ? 'Yes' : 'No'}</ListGroup.Item>});
     if (activeFilters.includes('lowFodmap'))
-      display.push({key: display.length, html: <p>Low Fodmap: {recipe.lowFodmap ? 'Yes' : 'No'}</p>});
+      specsList.push({key: specsList.length, html: <ListGroup.Item className={recipe.lowFodmap ? 'text-bg-success' : 'text-bg-danger'}>Low Fodmap: {recipe.lowFodmap ? 'Yes' : 'No'}</ListGroup.Item>});
     if (activeFilters.includes('lowGI'))
-      display.push({key: display.length, html: <p>Low GI: {getProperties(recipe, 'Glycemic Index')}</p>});
+      specsList.push({key: specsList.length, html: <ListGroup.Item className={getProperties(recipe, 'Glycemic Index') <= filterOptions.maxGI ? 'text-bg-success' : 'text-bg-danger'}>Low GI: {getProperties(recipe, 'Glycemic Index')}</ListGroup.Item>});
 
-    display.push({key: display.length, html: <p>Ingredients</p>});
-    display.push({key: display.length, html: recipe.extendedIngredients.map((ingred) => <li>{ingred.amount} {ingred.unit} {ingred.name}</li>)});
+    if (specsList.length === 0){
+      display.push({key: display.length, html: <p className='text-secondary'>No filters selected</p>});
+    }
+    else {
+      display.push({key: display.length, html: <ListGroup variant="flush">{specsList.map((html) => html.html)}</ListGroup>});
+    }
 
-    return <div style={{}}>{display.map((display) => display.html)}</div>
+    display.push({key: display.length, html: <Accordion defaultActiveKey="0"><Accordion.Item eventKey="0"><Accordion.Header>Ingredients</Accordion.Header><Accordion.Body><ul>{recipe.extendedIngredients.map((ingred) => <li>{ingred.amount} {ingred.unit} {ingred.name}</li>)}</ul></Accordion.Body></Accordion.Item></Accordion>});
+    return <div style={{}}>
+      <CloseButton
+          onClick={(e) => closeRecipe(e, recipe)}
+          variant="white"
+          className="position-absolute top-0 end-0 m-3" 
+          aria-label="Close"
+        />
+      <Card.Img src={recipe.image} alt={recipe.title} variant='top' style={{}}/>
+      <Card.Body>{display.map((display) => display.html)}</Card.Body></div>
   }
 
   return (
     <>
-      <Navbar bg="dark" data-bs-theme="dark" expand="lg">
-        <Container>
-          <Navbar.Brand href="#home">RecipeMatch</Navbar.Brand>
-          <Button variant="outline-light" onClick={() => setShowFilters(true)}>
-            Filters {activeFilters.length > 0 && `(${activeFilters.length})`}
-          </Button>
-          <FilterModal
-            show={showFilters}
-            onHide={() => setShowFilters(false)}
-            activeFilters={activeFilters}
-            onToggleFilter={toggleFilter}
-            onClearFilters={() => setActiveFilters([])}
-            filterOptions={filterOptions}
-            onFilterOptionsChange={setFilterOptions}
-          />
-        </Container>
-      </Navbar>
+      <TopNav 
+        FilterModalProps={{
+          show: showFilters,
+          onHide: () => setShowFilters(false),
+          activeFilters: activeFilters,
+          onToggleFilter: toggleFilter,
+          onClearFilters: () => setActiveFilters([]),
+          filterOptions: filterOptions,
+          onFilterOptionsChange: setFilterOptions
+        }}
+        activeFilters={activeFilters}
+        setShowFilters={setShowFilters}
+      />
 
       <div
         className="d-flex flex-column align-items-center"
-        style={{ height: 'calc(100vh - 56px)' }}
+        style={{ padding: '1rem' }}
       >
-        <h1 style={{padding: '1.5rem'}}>Compare Recipes!</h1>
+        <h1 style={{padding: '1.5rem'}}>Check Recipe</h1>
+        <p>Add one recipe to check if it fits your goals or up to 4 recipes to compare.</p>
         <div style={{ width: '500px' }}>
           <InputGroup>
             <Form.Control
@@ -136,25 +161,25 @@ function Home() {
               placeholder="https://example.com"
               ref={url}
             />
-            <Button variant="primary" onClick={parseURL}>Add</Button>
+            <Button className='styledBtn' onClick={parseURL}>Add</Button>
           </InputGroup>
         </div>
 
-        <div className="d-flex gap-3 mt-4 flex-wrap justify-content-center">
+        <div className="d-flex gap-3 mt-4 flex-wrap">
           {recipes.length > 0 ? recipes.map((recipe, index) => (
-            <div key={index} style={{
+            <Card key={index} style={{
               border: '1px solid #dee2e6',
+              height: 'auto',
               borderRadius: '8px',
-              padding: '16px',
               width: '300px',
               display: 'flex',
-              justifyContent: 'center',
               alignItems: 'center',
               flexDirection: 'column',
-              textAlign: 'left'
+              textAlign: 'left',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
             }}>
               {displayInfo(recipe)}
-            </div>
+            </Card>
           )): (
             displayCards()
           )}
