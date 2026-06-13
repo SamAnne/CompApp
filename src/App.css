@@ -1,0 +1,25 @@
+.header-text {
+  font-size: 64px;
+}
+
+.styledBtn {
+  background-color: #323F27;
+  color: #FFFFFF;
+  border: none;
+}
+
+.descriptionTxt {
+  font-size: 24px;
+}
+
+.styledBtn:hover {
+  background-color: #323F27;
+}
+
+.navBtn {
+  border-radius: 0px;
+  border: 0.1rem solid #546B41;
+  background-color: #FFFFFF;
+  color: #546B41;
+  font-weight: 0.25rem;
+}/*# sourceMappingURL=App.css.map */

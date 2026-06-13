@@ -14,9 +14,18 @@ export default function TopNav (inputs: NavBarInputs)
         return (
             <Navbar expand="lg">
                 <Container>
-                    <Navbar.Brand href="/">Nutraware</Navbar.Brand>
+                    <Navbar.Brand href="/">
+                        <img
+                        src="apple.png"
+                        width="30"
+                        height="30"
+                        className="d-inline-block align-top"
+                        alt="Nutraware logo"
+                        />
+                        Nutraware
+                    </Navbar.Brand>
                     <Nav className="me-auto">
-                        <Nav.Link href="about">About</Nav.Link>
+                        <Nav.Link href="dashboard">About</Nav.Link>
                     </Nav>
                     { inputs.activeFilters && inputs.setShowFilters ? 
                     <Button variant="outline-dark" onClick={() => inputs.setShowFilters?.(true)}>
