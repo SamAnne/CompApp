@@ -4,13 +4,17 @@ import cors from 'cors';
 import * as cheerio from 'cheerio';
 import { parseIngredient } from 'parse-ingredient';
 import pg from 'pg';
+import { parse } from 'dotenv';
 
 // notes
 // conversions not found in usda database are taken from https://www.allrecipes.com/article/cup-to-gram-conversions/
 
 
-const { Pool } = pg
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const { Pool } = pg;
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// for taking out brand names from beginning of ingredients
+const brands = ['Red Star', 'Fleischmann\'s', 'Bob\'s Red Mill', 'King Arthur', 'Land O\'Lakes', 'Philadelphia', 'Kraft'];
+
 
 function decodeIngred(string: string){
   return string
@@ -31,6 +35,8 @@ function cleanIngred(string: string){
     .replace(/\(.*?\)/g, '')   // now remove parentheses
     .replace(/\band\b/gi, '')
     .replace(/\s+/g, ' ')
+    .replace(/,\s*(warmed|softened|melted|divided|beat|beaten|chilled|room temperature|cut into.*|to about.*|for serving).*/i, '')
+    .split(/\s+or\s+/i)[0] 
     .trim()
 
   return { cleaned, weight }
@@ -55,7 +61,8 @@ async function parseRecipeUrl(url: string){
       console.log(recipe.recipeIngredient);
       //const ingredients = convertIngredients(recipe.recipeIngredient);
       const ingredients = ingredParser(recipe.recipeIngredient);
-      convertToG(ingredients[0].amount as number, ingredients[0].unit as string, ingredients[0].name);
+      convertToG(ingredients);
+      //convertToG(ingredients[0].amount as number, ingredients[0].unit as string, ingredients[0].name);
       const weightPerServing = { amount: recipe.recipeYield[1], unit: recipe.recipeYield[1]};
       const obj = {
         title:        recipe.name,
@@ -78,31 +85,105 @@ function ingredParser(ingredients: string[]){
     const { cleaned, weight } = cleanIngred(ingredients[ingred]); // use weight for g calc later
     const parsed = parseIngredient(cleaned)[0];
     console.log(parsed);
-    const p = {
+    let p = {};
+    p = {
       amount: parsed.quantity,
       unit: parsed.unitOfMeasure,
       name: parsed.description
     }
-    formatted.push(p);
+
+    if (parsed.quantity === null || parsed.unitOfMeasure === null){
+      const match = ingredients[ingred].match(/\((.*)\)/);
+      if (match){
+        console.log(match);
+        const { cleaned, weight } = cleanIngred(match[1].replace(/[()]/g, ''));
+        console.log('clean');
+        console.log(cleaned);
+        const parsed = parseIngredient(cleaned)[0];
+        console.log(parsed);
+        const p = {
+          amount: parsed.quantity,
+          unit: parsed.unitOfMeasure,
+          name: parsed.description
+        }
+        console.log(p);
+        formatted.push(p);
+      }
+    }
+    else {
+      const p = {
+        amount: parsed.quantity,
+        unit: parsed.unitOfMeasure,
+        name: parsed.description
+      }
+      formatted.push(p);
+    }
+
+    
   }
   return formatted;
 }
 
-async function convertToG(amount:number, unit:string, ingred:string){
+function normalizeUnit(unit:string) {
+  return unit.replace(/s$/i, '')
+}
+
+// create function that takes out ignorable ingredients from ingredients
+
+async function convertToG(ingredients:{
+    amount: number | null;
+    unit: string | null;
+    name: string;
+}[])
+{
   // if ingred = eggs, then unit is egg
   // oil is in mililiters, add cup conversion
-  // ignore water, salt
+  // ignore water, salt, egg wash?, 
   // or descriptions take the first ingredient
+  let err = [];
+
+  for (const ingred in ingredients){
+    let unit = normalizeUnit(ingredients[ingred].unit as string);
+    if (unit === 'large' && ingredients[ingred].name.includes('egg')){
+      unit = 'egg';
+      if (ingredients[ingred].name.includes('white')) ingredients[ingred].name = 'egg white';
+      else if (ingredients[ingred].name.includes('yolk')) ingredients[ingred].name = 'egg yolk';
+      else ingredients[ingred].name = 'whole egg';
+    }
   
-  switch(unit){
-    case 'cups':
-    case 'cup':
-      const result = await pool.query(`SELECT elem->>'amount' as amount, elem->>'grams' as grams FROM food_with_portions, json_array_elements(portions) as elem WHERE to_tsvector('english', description) @@ websearch_to_tsquery('english', '${ingred}') AND elem->>'unit' = 'cup';`);
-      //console.log(result);
-      console.log(`${amount} cup/s is ${(result.rows[0].grams * amount) / result.rows[0].amount} in grams`);
-      break;
-    
+    const result = await pool.query(`SELECT elem->>'amount' as amount, elem->>'grams' as grams FROM food_with_portions, json_array_elements(portions) as elem WHERE to_tsvector('english', description) @@ websearch_to_tsquery('english', '${ingredients[ingred].name}') AND elem->>'unit' = '${unit}';`);
+    //console.log(result);
+    if (result.rows.length !== 0){
+      console.log(`${ingredients[ingred].amount} ${unit}/s is ${(result.rows[0].grams * (ingredients[ingred].amount as number)) / result.rows[0].amount} in grams`);
+    }
+    else {
+      err.push({amount: ingredients[ingred].amount, unit: unit, name: ingredients[ingred].name});
+      console.log(`could not find ${ingredients[ingred].amount} ${unit} ${ingredients[ingred].name}`);
+    }
   }
+
+  console.log(`${err.length} wrong out of ${ingredients.length}`);
+  console.log(err);
+  
+  
+
+
+  // switch(unit){
+  //   case 'cups':
+  //   case 'cup':
+  //     const result = await pool.query(`SELECT elem->>'amount' as amount, elem->>'grams' as grams FROM food_with_portions, json_array_elements(portions) as elem WHERE to_tsvector('english', description) @@ websearch_to_tsquery('english', '${ingred}') AND elem->>'unit' = 'cup';`);
+  //     console.log(result);
+  //     console.log(`${amount} cup/s is ${(result.rows[0].grams * amount) / result.rows[0].amount} in grams`);
+  //     break;
+  //   case 'teaspoon':
+  //   case 'teaspoons':
+  //     break;
+  //   case 'tablespoon':
+  //   case 'tablespoons':
+  //     break;
+    
+    
+  // }
 }
 
 function convertIngredients(ingredients: string[]){
