@@ -19,10 +19,10 @@ export default function TopNav (inputs: NavBarInputs)
                         src="apple.png"
                         width="30"
                         height="30"
-                        className="d-inline-block align-top"
+                        className="d-inline-block align-top me-2"
                         alt="Nutraware logo"
                         />
-                        Nutraware
+                        Friendly Kitchen
                     </Navbar.Brand>
                     <Nav className="me-auto">
                         <Nav.Link href="dashboard">About</Nav.Link>
