@@ -6,16 +6,18 @@ import { parseIngredient } from 'parse-ingredient';
 import pg from 'pg';
 import OpenAI from "openai";
 import { parse } from 'dotenv';
+import fs from 'fs/promises';
 
 // notes
-// conversions not found in usda database are taken from https://www.allrecipes.com/article/cup-to-gram-conversions/
+// conversions not found in usda database are taken from:
+// https://www.allrecipes.com/article/cup-to-gram-conversions/
 // https://www.kingarthurbaking.com/learn/ingredient-weight-chart 
 const ignore = ["dried parsley", 'dried rosemary', 'dried thyme', 'garlic powder', 'black pepper', 'salt', 'boiling water', 'red pepper flakes', 'cold water', 'italian seasoning', 'paprika', 'kosher salt', 'sea salt'];
 let error = 0;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_KEY,
-});
+// const openai = new OpenAI({
+//   apiKey: process.env.OPENAI_KEY,
+// });
 
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -66,27 +68,28 @@ async function parseRecipeUrl(url: string){
 }
 
 async function ingredParser(ingredients: string[]){
-  const aiResponse = await openai.responses.create({
-    model: "gpt-5.4-mini",
-    temperature: 0.0,
-    input: [
-      {
-        role: 'system',
-        content: "Parse recipe ingredients into amount, unit, and name. Remove preparation words, keep identity/nutritional descriptors, ignore parenthetical notes, unless it's explicit weight or volume measurements then prioritize that for units and ignore alternatives (keep the first ingredient only), split combined ingredients and divide amounts evenly, normalize vague ingredients to common grocery-store forms, and use USDA-style units for countable foods. Return only JSON.\n",
-      }, 
-      {
-        role: 'user',
-        content: ingredients.toString(),
-      }
-    ], 
-    store: true,
+  // const aiResponse = await openai.responses.create({
+  //   model: "gpt-5.4-mini",
+  //   temperature: 0.0,
+  //   input: [
+  //     {
+  //       role: 'system',
+  //       content: "Parse recipe ingredients into amount, unit, and name all to strings. Remove preparation words, keep identity/nutritional descriptors, ignore parenthetical notes, unless it's explicit weight or volume measurements then prioritize that for units and ignore alternatives (keep the first ingredient only), split combined ingredients and divide amounts evenly, normalize vague ingredients to common grocery-store forms, and use USDA-style units for countable foods. Return only JSON.\n",
+  //     }, 
+  //     {
+  //       role: 'user',
+  //       content: ingredients.toString(),
+  //     }
+  //   ], 
+  //   store: true,
     
-  });
+  // });
 
-  console.log(aiResponse);
-  console.log("\n\nresult output\n");
-  console.log(JSON.parse(aiResponse.output_text) as ingredients[]);
-  return JSON.parse(aiResponse.output_text) as ingredients[];
+  // console.log(aiResponse);
+  // console.log("\n\nresult output\n");
+  // console.log(JSON.parse(aiResponse.output_text) as ingredients[]);
+  // return JSON.parse(aiResponse.output_text) as ingredients[];
+  return [] as ingredients[];
 }
 
 function normalizeUnit(unit:string) {
@@ -150,6 +153,54 @@ async function convertToG(ingredients: ingredients[])
   console.log(err);
 }
 
+async function createTrainingData(array: any[]){
+  let dataArray = [];
+  for (let i = 0; i < array.length; i++){
+    const entities = [];
+    const mapping = [
+        { value: array[i].amount.toString(), label: 'amount' },
+        { value: array[i].unit, label: 'unit' },
+        { value: array[i].name, label: 'name' }
+    ];
+
+    for (const item of mapping) {
+        if (!item.value) continue;
+
+        // Escape regex characters and look for whole-word boundaries
+        const escaped = item.value.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+        const match = array[i].original.match(regex);
+
+        if (match && match.index !== undefined) {
+            const startIdx = match.index;
+            const endIdx = startIdx + item.value.length;
+            entities.push([startIdx, endIdx, item.label]);
+        }
+    }
+    entities.sort((a, b) => a[0] - b[0]);
+    dataArray.push([array[i].original, { entities }]);
+  }
+  addTrainingData("trainingData.json",dataArray);
+}
+
+
+async function addTrainingData(filePath: string, data: any[]){
+  let dataset = [];
+
+  try {
+      await fs.access(filePath);
+      const fileContent = await fs.readFile(filePath, 'utf-8');
+      if (fileContent.trim().length > 0) {
+          dataset = JSON.parse(fileContent);
+      }
+  } catch (error) {
+      // fs.access throws an error if the file doesn't exist
+      // This means it's a new file, so we keep dataset as an empty array []
+  }
+
+  dataset.push(...data);
+  await fs.writeFile(filePath, JSON.stringify(dataset, null, 2), 'utf-8');
+}
 
 const app: Express = express();
 app.use(cors());
@@ -169,8 +220,11 @@ app.get('/api/extract', async (req, res) => {
       `https://api.spoonacular.com/recipes/extract?url=${encodeURIComponent(url as string)}&includeNutrition=true&apiKey=${process.env.SPOONACULAR_KEY}`
     );
     const data = await response.json();
+    //console.log(data.extendedIngredients);
+    //createTrainingData(data.extendedIngredients);
     res.json(data);
   }
 });
+
 
 app.listen(3001, () => console.log('Server running on port 3001'));

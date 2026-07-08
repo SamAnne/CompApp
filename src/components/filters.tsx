@@ -4,6 +4,7 @@ import { Button, Form, Modal } from 'react-bootstrap'
 interface Filter {
   id: string;
   label: string;
+  filters?: string[];
 }
 
 export interface FilterOptions {
@@ -22,6 +23,12 @@ export interface FilterModalProps {
   filterOptions: FilterOptions;
   onFilterOptionsChange: (options: FilterOptions) => void;
 }
+
+const groupedFilters: Filter[] = [
+  { id: 'pcos', label: 'PCOS', filters: ['lowGI', 'antiInflammatory', 'dairyFree']},
+  { id: 'ibs', label: 'IBS', filters: ['lowFodmap', 'lowFat']},
+  { id: 't2diabetes', label: 'Type 2 Diabetes', filters: ['sugarFree', 'lowCarb']} // add more
+];
 
 const filters: Filter[] = [
   { id: 'highProtein', label: 'High Protein' },
@@ -51,9 +58,9 @@ export default function FilterModal({
   );
 
   return (
-    <Modal show={show} onHide={onHide} centered>
+    <Modal show={show} onHide={onHide} className='descriptionTxt' centered>
       <Modal.Header closeButton>
-        <Modal.Title>Filter Recipes</Modal.Title>
+        <Modal.Title className='headerTxt'>Filter Recipes</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Form.Control
@@ -63,7 +70,7 @@ export default function FilterModal({
           onChange={(e) => setFilterSearch(e.target.value)}
           className="mb-3"
         />
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <div className='d-flex flex-wrap gap-1'>
           {filteredOptions.map(filter => (
             <Button
               key={filter.id}
@@ -78,7 +85,7 @@ export default function FilterModal({
 
         {/* High Protein slider */}
         {activeFilters.includes('highProtein') && (
-          <div className="mt-3 p-3" style={{ background: '#f8f9fa', borderRadius: '8px' }}>
+          <div className="mt-3 p-3 filter-popup">
             <Form.Label>Minimum protein per serving: <strong>{filterOptions.minProtein}g</strong></Form.Label>
             <Form.Range
               min={0}
@@ -86,7 +93,7 @@ export default function FilterModal({
               value={filterOptions.minProtein}
               onChange={(e) => onFilterOptionsChange({ ...filterOptions, minProtein: Number(e.target.value) })}
             />
-            <div className="d-flex justify-content-between" style={{ fontSize: '0.8rem', color: '#6c757d' }}>
+            <div className="d-flex justify-content-between filter-popup-text">
               <span>0g</span>
               <span>100g</span>
             </div>
@@ -95,7 +102,7 @@ export default function FilterModal({
 
         {/* Low Carb slider */}
         {activeFilters.includes('lowCarb') && (
-          <div className="mt-3 p-3" style={{ background: '#f8f9fa', borderRadius: '8px' }}>
+          <div className="mt-3 p-3 filter-popup">
             <Form.Label>Maximum carbs per serving: <strong>{filterOptions.maxCarbs}g</strong></Form.Label>
             <Form.Range
               min={0}
@@ -103,7 +110,7 @@ export default function FilterModal({
               value={filterOptions.maxCarbs}
               onChange={(e) => onFilterOptionsChange({ ...filterOptions, maxCarbs: Number(e.target.value) })}
             />
-            <div className="d-flex justify-content-between" style={{ fontSize: '0.8rem', color: '#6c757d' }}>
+            <div className="d-flex justify-content-between filter-popup-text">
               <span>0g</span>
               <span>200g</span>
             </div>
@@ -112,7 +119,7 @@ export default function FilterModal({
 
         {/* Low Calorie slider */}
         {activeFilters.includes('lowCalorie') && (
-          <div className="mt-3 p-3" style={{ background: '#f8f9fa', borderRadius: '8px' }}>
+          <div className="mt-3 p-3 filter-popup">
             <Form.Label>Maximum calories per serving: <strong>{filterOptions.maxCalories}</strong></Form.Label>
             <Form.Range
               min={0}
@@ -120,7 +127,7 @@ export default function FilterModal({
               value={filterOptions.maxCalories}
               onChange={(e) => onFilterOptionsChange({ ...filterOptions, maxCalories: Number(e.target.value) })}
             />
-            <div className="d-flex justify-content-between" style={{ fontSize: '0.8rem', color: '#6c757d' }}>
+            <div className="d-flex justify-content-between filter-popup-text">
               <span>0</span>
               <span>1500</span>
             </div>
@@ -129,7 +136,7 @@ export default function FilterModal({
 
         {/* GI slider */}
         {activeFilters.includes('lowGI') && (
-          <div className="mt-3 p-3" style={{ background: '#f8f9fa', borderRadius: '8px' }}>
+          <div className="mt-3 p-3 filter-popup">
             <Form.Label>Minimum GI: <strong>{filterOptions.maxGI}</strong></Form.Label>
             <Form.Range
               min={0}
@@ -137,7 +144,7 @@ export default function FilterModal({
               value={filterOptions.maxGI}
               onChange={(e) => onFilterOptionsChange({ ...filterOptions, maxGI: Number(e.target.value) })}
             />
-            <div className="d-flex justify-content-between" style={{ fontSize: '0.8rem', color: '#6c757d' }}>
+            <div className="d-flex justify-content-between filter-popup-text">
               <span>0</span>
               <span>55</span>
             </div>

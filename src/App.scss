@@ -1,9 +1,11 @@
-$button-color: #323F27;
-$button-text: #FFFFFF;
+$primary: #546B41;
+$secondary: #323F27;
+$complement: #CFB98C;
+
 $button-padding: 1rem;
 $button-width: 25%;
 $button-size: 1.25rem;
-$button-hover: #323F27;
+$button-hover: #CFB98C;
 
 $nav-button-color: #546B41;
 $nav-button-padding: 1rem;
@@ -11,32 +13,92 @@ $nav-button-width: 25%;
 $nav-button-size: 1.25rem;
 
 
-$header-text-size: 64px;
+$header-text-size: 1.2rem;
 $desc-text-size: 24px;
 
 
-.header-text{
+.card-header-text{
   font-size: $header-text-size;
 }
 
-.styledBtn{
-  background-color: $button-color;
-  color: $button-text;
-  border: none;
+.styledBtn:focus, 
+.styledBtn:active {
+  background-color: $secondary !important;
+}
+
+.headerTxt{
+  font-family: "Lobster Two", sans-serif;
+  font-weight: 400;
+  font-style: normal;
 }
 
 .descriptionTxt {
-  font-size: $desc-text-size;
+  font-family: "Libre Baskerville", serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  // font-size: $desc-text-size;
+}
+
+.styledBtn{
+  @extend .descriptionTxt;
+  background-color: $secondary;
+  color: white;
+  border: none;
 }
 
 .styledBtn:hover{
-  background-color: $button-hover; //change
+  box-shadow: 0 1px 3px 5px rgba(0, 0, 0, 0.1);
+  background-color: $secondary;
 }
 
 .navBtn{
-  border-radius: 0px;
+  border-radius: 0.5rem;
   border: 0.1rem solid $nav-button-color;
   background-color: #FFFFFF;
   color: $nav-button-color;
   font-weight: 0.25rem;
+}
+
+.primary-content{
+  background-color: $primary;
+  color: white;
+}
+
+.secondary-content{
+  background-color: $complement;
+  color: white;
+}
+
+.secondary-text{
+  color: $complement;
+}
+
+.primary-text{
+  color: $primary;
+}
+
+.shadow-custom-green {
+  box-shadow: rgb(84, 107, 65, 0.4) -5px 5px, rgb(84, 107, 65, 0.3) -10px 10px, rgb(84, 107, 65, 0.2) -15px 15px, rgb(84, 107, 65, 0.1) -20px 20px, rgb(84, 107, 65, 0.05) -25px 25px !important;
+}
+
+.shadow-custom-red {
+  box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3) !important;
+}
+
+.recipe-card{
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  width: 300px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.filter-popup{
+  background: #f8f9fa;
+  border-radius: 0.5rem;
+}
+
+.filter-popup-text{
+  font-size: 0.8rem; 
+  color: #6c757d;
 }
