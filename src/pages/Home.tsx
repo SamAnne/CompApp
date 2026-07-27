@@ -1,7 +1,8 @@
 import { useState, useRef, act } from 'react'
-import { Button, Form, InputGroup, Stack, Modal, Nav, Card, ListGroup, Accordion, CloseButton, CardGroup, Tab } from 'react-bootstrap'
-import FilterModal, { type FilterOptions, FilterModalProps } from '../components/filters';
+import { Button, Form, InputGroup, Stack, Modal, Nav, Card, ListGroup, Accordion, CloseButton, CardGroup, Tab, Alert } from 'react-bootstrap'
+import { type FilterOptions } from '../components/filters';
 import TopNav from '../components/navbar';
+import PlaceholderRecipe from '../components/placeholderRecipe';
 
 interface Nutrient {
   name: string;
@@ -32,31 +33,49 @@ interface Recipe {
   servings: number;
   rank: number;
   id: number;
+  display: React.ReactNode
 }
 
 
 function Home() {
   const [showFilters, setShowFilters] = useState(false);
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [activeFilters, setActiveFilters] = useState<string[]>(():string[] => {
+    const savedFilters = localStorage.getItem('filters');
+    return savedFilters ? JSON.parse(savedFilters) : [];
+  });
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
-    minProtein: 20,
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>(():FilterOptions => {
+    const savedOptions = localStorage.getItem('filterQuantity');
+    return savedOptions ? JSON.parse(savedOptions) : {minProtein: 20,
     maxCarbs: 50,
     maxCalories: 500,
-    maxGI: 55
+    maxGI: 55};
   });
+  const saveOptions = (filters: FilterOptions) => {
+    setFilterOptions(filters);
+    localStorage.setItem('filterQuantity', JSON.stringify(filters));
+  }
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState('apprec');
+  const [loading, setLoading] = useState(false);
+  const [showError, setError] = useState({error: false, msg: 'There was an issue with processing the URL'});
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
 
   const url = useRef<HTMLInputElement>(null);
-
+  
+  const sortByScore = () => {
+    recipes.forEach(rec => {
+      rec.display = displayInfo(rec);
+    });
+    recipes.sort((a, b) => b.rank - a.rank);
+    return recipes;
+  };
   const toggleFilter = (id: string) => {
-    setActiveFilters(prev =>
-      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
-    );
+    const updateFilters = activeFilters.includes(id) ? activeFilters.filter(f => f !== id) : [...activeFilters, id];
+    setActiveFilters(updateFilters);
+    localStorage.setItem('filters', JSON.stringify(updateFilters)); // so filters can stay for every recipe instead of inputting them everytime
   };
 
   const getNutrient = (recipe: Recipe, name: string) =>
@@ -67,17 +86,34 @@ function Home() {
 
   const parseURL = async () => {
     const urlValue = url.current?.value;
-    if (!urlValue) return;
-
+    if (!urlValue){
+      setError({error: true, msg: 'There is no URL copied into the textbox.'});
+      return;
+    } 
+    if (recipes.length === 4) {
+      setError({error: true, msg: 'The recipe comparison limit is 4.'});
+      return;
+    }
     if (recipes.filter(r => r.sourceUrl === urlValue).length === 0){
-      const response = await fetch(
-        `http://localhost:3001/api/extract?url=${encodeURIComponent(urlValue)}`
-      );
-      const data: Recipe = await response.json();
-      console.log(data);
-      setRecipes(prev => [...prev, data]);
+      try{
+        setLoading(true);
+        const response = await fetch(
+          `http://localhost:3001/api/extract?url=${encodeURIComponent(urlValue)}`
+        );
+        const data: Recipe = await response.json();
+        console.log(data);
+        setLoading(false);
+        setRecipes(prev => [...prev, data]);
+      }
+      catch(error){
+        setError({error: true, msg: 'API call was not able to complete. Please check the URL or try again.'});
+      }
+      finally{
+        setLoading(false);
+      }
     }
     else{
+      setError({error: true, msg: 'Recipe has already been added.'});
       console.log("recipe already added");
     }
   }
@@ -144,14 +180,13 @@ function Home() {
       display.push({key: display.length, html: <ListGroup variant="flush">{specsList.map((html) => html.html)}</ListGroup>});
     }
     recipe.rank = score;
-    console.log("score of recipe is " + recipe.rank);
-
-    display.push({key: display.length, html: <Accordion defaultActiveKey="0"><Accordion.Item eventKey="0"><Accordion.Header>Ingredients</Accordion.Header><Accordion.Body><ul>{recipe.extendedIngredients.map((ingred) => <li>{ingred.amount} {ingred.unit} {ingred.name}</li>)}</ul></Accordion.Body></Accordion.Item></Accordion>});
+    console.log(score + recipe.title);
+    display.push({key: display.length, html: <Accordion><Accordion.Item eventKey="0"><Accordion.Header>Ingredients</Accordion.Header><Accordion.Body><ul>{recipe.extendedIngredients.map((ingred) => <li>{ingred.amount} {ingred.unit} {ingred.name}</li>)}</ul></Accordion.Body></Accordion.Item></Accordion>});
     return <div>
       <CloseButton
           onClick={(e) => closeRecipe(e, recipe)}
           variant="white"
-          className="position-absolute top-0 end-0 m-3" 
+          className="position-absolute top-0 end-0 m-2 bg-white p-2 rounded-4" 
           aria-label="Close"
         />
       <Card.Img src={recipe.image} alt={recipe.title} variant='top'/>
@@ -168,7 +203,7 @@ function Home() {
           onToggleFilter: toggleFilter,
           onClearFilters: () => setActiveFilters([]),
           filterOptions: filterOptions,
-          onFilterOptionsChange: setFilterOptions
+          onFilterOptionsChange: saveOptions
         }}
         activeFilters={activeFilters}
         setShowFilters={setShowFilters}
@@ -189,7 +224,19 @@ function Home() {
               <Button className='styledBtn' onClick={parseURL}>Add</Button>
             </InputGroup>
           </div>
-          <a role='button' className='mt-2 text-white' onClick={openModal}>Known Limitations</a>
+          {showError.error && (
+            <Alert className='align-self-center errorTxt mt-2 p-2 pe-4 mb-0' variant="danger">
+              {showError.msg}
+              <CloseButton
+                onClick={(e) => setError({error: false, msg: 'Something went wrong'})}
+                variant="black"
+                className="position-absolute rounded-4" 
+                aria-label="Close"
+              />
+            </Alert>
+          )}
+          <a role='button' className='mt-2 text-white align-self-center' onClick={openModal}>Known Limitations</a>
+          <div id='errors'></div>
           <Modal show={showModal} onHide={closeModal} centered>
             <Modal.Header className="position-relative justify-content-center" closeButton>
               <Modal.Title className='headerTxt'>Known Limitations</Modal.Title>
@@ -200,7 +247,7 @@ function Home() {
           </Modal>
         </Stack>
         <div className="d-flex gap-3 mt-4 mb-4 flex-wrap">
-          {recipes.length === 0 && (
+          {recipes.length === 0 && loading !== true && (
             <div className="d-flex justify-content-center align-items-center p-2 descriptionTxt">
               <Card className='d-flex text-start h-auto' style={{ width: '50%', minWidth: '320px' }}>
                 <Card.Header><h3 className='headerTxt'>Usage</h3>
@@ -222,7 +269,7 @@ function Home() {
                     <Card.Title>Appreciation</Card.Title>
                     <Card.Text>
                       One way to use this application is to show appreciation by providing food that fits the needs of others! Whether it's a small get together or a party, this is a perfect way to find what fits for everyone.<br/><br/>
-                      <h5>Some Examples</h5>
+                      <span className='card-header-text'>Some Examples</span><br/>
                       - Throwing a party for guests with certain restrictions<br/>
                       - Bringing food to a work get together<br/>
                     </Card.Text>
@@ -232,10 +279,10 @@ function Home() {
                     <div>
                       <Card.Title>Working on Yourself</Card.Title>
                       <Card.Text>
-                        Making dietary goals for yourself is much easier to follow with this checker that analyzes each recipe for exactly what you need. From starting to work out to needing to lose a certain amount of weight, we cover it all<br/><br/>
-                        <h5>Some Examples</h5>
+                        Making dietary goals for yourself is much easier to follow with this checker that analyzes each recipe for exactly what you need. From starting to work out to needing to lose a certain amount of weight, this cover it all!<br/><br/>
+                        <span className='card-header-text'>Some Examples</span><br/>
                         - Adjusting your diet for health issues<br/>
-                        - Reaching for a protein goal to hit the gym<br/>
+                        - Reaching a protein goal to hit the gym<br/>
                       </Card.Text>
                     </div>
                   )}
@@ -244,9 +291,9 @@ function Home() {
                       <Card.Title>Where recipes might be found</Card.Title>
                       <Card.Text>
                         Recipe links can be found from multiple social medias and copied into this web app. Relying on searching for specific dietary restrictions can be tricky as sometimes the results are not 100% accurate. The analysis makes sure you are sure.<br/><br/>
-                        <h5>Some Examples</h5>
-                        - Pinterest recipe link<br/>
-                        - Googling a new recipe<br/>
+                        <span className='card-header-text'>Some Examples</span><br/>
+                        - an interesting Pinterest recipe<br/>
+                        - Googling a new recipe to try out<br/>
                       </Card.Text>
                     </div>
                   )}
@@ -254,12 +301,26 @@ function Home() {
               </Card>
             </div>
           )}
-          {[...recipes].sort((a, b) => b.rank - a.rank).map((recipe, index) => 
+          {sortByScore().map((recipe, index) => 
           (  
-            <Card key={recipe.id} className={`descriptionTxt recipe-card d-flex align-items-center flex-column text-start h-auto ${index === 0 ? 'shadow-custom-green' : ''}`}>
-              {displayInfo(recipe)}
+            <Card key={recipe.id} className={`descriptionTxt recipe-card d-flex align-items-center flex-column text-start h-auto ${(index === 0 && recipes.length > 1 && activeFilters.length !== 0) ? 'shadow-custom-green' : ''}`}>
+              {/* {index === 0 && (<img 
+              src='crown.png' 
+              alt="Sideways Crown"
+              style={{ 
+                transform: 'rotate(-45deg)', 
+                width: '70px', 
+                height: 'auto',
+                display: 'inline-block' 
+              }} 
+              className="position-absolute top-0 start-0"
+            />)} */}
+              {recipe.display}
             </Card>
           ))}
+          {loading === true && (
+            <PlaceholderRecipe></PlaceholderRecipe>
+          )}
         </div>
       </div>
     </>

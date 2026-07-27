@@ -13,7 +13,7 @@ function Dashboard() {
                         <Col xs={12} md={4}>
                             <Image src='basket.png' alt='basket' fluid/>
                         </Col>
-                        <Col className='d-flex flex-column w-25 m-5' xs={12} md={6}>
+                        <Col className='d-flex flex-column w-25 m-5' xs={6} md={6}>
                             <h1 className='headerTxt'>Find the perfect recipes <span className='text-decoration-underline'>for you</span></h1>
                             <p className='descriptionTxt'>From adding your preferred diets, to adding a dietary restriction, this website has you covered! Start comparing recipes now by adding your personal preferences to reach your goals.</p>
                             <Button className='styledBtn align-self-center p-3' onClick={()=> navigate('/')}>Get Started</Button>

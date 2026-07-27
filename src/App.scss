@@ -14,8 +14,26 @@ $nav-button-size: 1.25rem;
 
 
 $header-text-size: 1.2rem;
-$desc-text-size: 24px;
+$desc-text-size: 0.9rem;
 
+@font-face {
+  font-family: 'Libre Baskerville';
+  src: url('./fonts/LibreBaskerville-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-optical-sizing: auto;
+}
+
+@font-face {
+  font-family: 'Lobster Two';
+  src: url('./fonts/LobsterTwo-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+.errorTxt{
+  font-size: $desc-text-size;
+}
 
 .card-header-text{
   font-size: $header-text-size;
@@ -28,16 +46,10 @@ $desc-text-size: 24px;
 
 .headerTxt{
   font-family: "Lobster Two", sans-serif;
-  font-weight: 400;
-  font-style: normal;
 }
 
 .descriptionTxt {
   font-family: "Libre Baskerville", serif;
-  font-optical-sizing: auto;
-  font-weight: 400;
-  font-style: normal;
-  // font-size: $desc-text-size;
 }
 
 .styledBtn{
@@ -54,10 +66,10 @@ $desc-text-size: 24px;
 
 .navBtn{
   border-radius: 0.5rem;
-  border: 0.1rem solid $nav-button-color;
-  background-color: #FFFFFF;
-  color: $nav-button-color;
-  font-weight: 0.25rem;
+  border: 0.1rem solid $primary;
+  background-color: white;
+  color: $primary;
+  // font-weight: 0.25rem;
 }
 
 .primary-content{

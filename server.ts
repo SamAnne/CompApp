@@ -15,9 +15,9 @@ import fs from 'fs/promises';
 const ignore = ["dried parsley", 'dried rosemary', 'dried thyme', 'garlic powder', 'black pepper', 'salt', 'boiling water', 'red pepper flakes', 'cold water', 'italian seasoning', 'paprika', 'kosher salt', 'sea salt'];
 let error = 0;
 
-// const openai = new OpenAI({
-//   apiKey: process.env.OPENAI_KEY,
-// });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_KEY,
+});
 
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -68,28 +68,28 @@ async function parseRecipeUrl(url: string){
 }
 
 async function ingredParser(ingredients: string[]){
-  // const aiResponse = await openai.responses.create({
-  //   model: "gpt-5.4-mini",
-  //   temperature: 0.0,
-  //   input: [
-  //     {
-  //       role: 'system',
-  //       content: "Parse recipe ingredients into amount, unit, and name all to strings. Remove preparation words, keep identity/nutritional descriptors, ignore parenthetical notes, unless it's explicit weight or volume measurements then prioritize that for units and ignore alternatives (keep the first ingredient only), split combined ingredients and divide amounts evenly, normalize vague ingredients to common grocery-store forms, and use USDA-style units for countable foods. Return only JSON.\n",
-  //     }, 
-  //     {
-  //       role: 'user',
-  //       content: ingredients.toString(),
-  //     }
-  //   ], 
-  //   store: true,
+  const aiResponse = await openai.responses.create({
+    model: "gpt-5.4-mini",
+    temperature: 0.0,
+    input: [
+      {
+        role: 'system',
+        content: "Parse recipe ingredients into amount, unit, and name all to strings. Remove preparation words, keep identity/nutritional descriptors, ignore parenthetical notes, unless it's explicit weight or volume measurements then prioritize that for units and ignore alternatives (keep the first ingredient only), split combined ingredients and divide amounts evenly, normalize vague ingredients to common grocery-store forms, and use USDA-style units for countable foods. Return only JSON.\n",
+      }, 
+      {
+        role: 'user',
+        content: ingredients.toString(),
+      }
+    ], 
+    store: true,
     
-  // });
+  });
 
-  // console.log(aiResponse);
-  // console.log("\n\nresult output\n");
-  // console.log(JSON.parse(aiResponse.output_text) as ingredients[]);
-  // return JSON.parse(aiResponse.output_text) as ingredients[];
-  return [] as ingredients[];
+  console.log(aiResponse);
+  console.log("\n\nresult output\n");
+  console.log(JSON.parse(aiResponse.output_text) as ingredients[]);
+  return JSON.parse(aiResponse.output_text) as ingredients[];
+  // return [] as ingredients[];
 }
 
 function normalizeUnit(unit:string) {
@@ -131,7 +131,7 @@ async function convertToG(ingredients: ingredients[])
         console.log(`${ingredients[ingred].amount} lb/s is ${28.35 * (ingredients[ingred].amount as number)} in grams`);
       }
       else {
-        const result = await pool.query(`SELECT elem->>'amount' as amount, elem->>'grams' as grams FROM food_with_portions, json_array_elements(portions) as elem WHERE to_tsvector('english', description) @@ websearch_to_tsquery('english', '${ingredients[ingred].name}') AND elem->>'unit' = '${unit === 'unknown' ? ingredients[ingred].name : unit}' order by fdc_id asc;`);
+        const result = await pool.query('SELECT elem->>"amount" as amount, elem->>"grams" as grams FROM food_with_portions, json_array_elements(portions) as elem WHERE to_tsvector("english", description) @@ websearch_to_tsquery("english", "$1") AND elem->>"unit" = "$2" order by fdc_id asc;', [ingredients[ingred].name, (unit === 'unknown' ? ingredients[ingred].name : unit)]);
         //console.log(result);
         if (result.rows.length !== 0){
           console.log(`${ingredients[ingred].amount} ${unit === 'unknown' ? ingredients[ingred].name : unit}/s is ${(result.rows[0].grams * (ingredients[ingred].amount as number)) / result.rows[0].amount} in grams`);
@@ -199,6 +199,7 @@ async function addTrainingData(filePath: string, data: any[]){
   }
 
   dataset.push(...data);
+  //pool.query()
   await fs.writeFile(filePath, JSON.stringify(dataset, null, 2), 'utf-8');
 }
 
