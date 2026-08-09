@@ -12,7 +12,7 @@ import fs from 'fs/promises';
 // conversions not found in usda database are taken from:
 // https://www.allrecipes.com/article/cup-to-gram-conversions/
 // https://www.kingarthurbaking.com/learn/ingredient-weight-chart 
-const ignore = ["dried parsley", 'dried rosemary', 'dried thyme', 'garlic powder', 'black pepper', 'salt', 'boiling water', 'red pepper flakes', 'cold water', 'italian seasoning', 'paprika', 'kosher salt', 'sea salt'];
+const ignore = ["dried parsley", 'dried rosemary', 'dried thyme', 'garlic powder', 'black pepper', 'salt', 'boiling water', 'red pepper flakes', 'cold water', 'italian seasoning', 'paprika', 'kosher salt', 'sea salt', 'baking powder', 'baking soda', 'vanilla extract'];
 let error = 0;
 
 const openai = new OpenAI({
@@ -28,6 +28,7 @@ interface ingredients {
     amount: number | null;
     unit: string | null;
     name: string;
+    grams?: number;
 };
 
 async function parseRecipeUrl(url: string){
@@ -49,6 +50,7 @@ async function parseRecipeUrl(url: string){
       console.log(recipe.recipeIngredient);
       //const ingredients = convertIngredients(recipe.recipeIngredient);
       const ingredients = await ingredParser(recipe.recipeIngredient);
+      createTrainingData(ingredients);
       convertToG(ingredients);
       //convertToG(ingredients[0].amount as number, ingredients[0].unit as string, ingredients[0].name);
       const weightPerServing = { amount: recipe.recipeYield[1], unit: recipe.recipeYield[1]};
@@ -74,7 +76,7 @@ async function ingredParser(ingredients: string[]){
     input: [
       {
         role: 'system',
-        content: "Parse recipe ingredients into amount, unit, and name all to strings. Remove preparation words, keep identity/nutritional descriptors, ignore parenthetical notes, unless it's explicit weight or volume measurements then prioritize that for units and ignore alternatives (keep the first ingredient only), split combined ingredients and divide amounts evenly, normalize vague ingredients to common grocery-store forms, and use USDA-style units for countable foods. Return only JSON.\n",
+        content: "Parse recipe ingredients into amount, unit, and name all to strings. Remove preparation words, keep identity/nutritional descriptors, ignore parenthetical notes, unless it's explicit weight or volume measurements then prioritize that for units and ignore alternatives (keep the first ingredient only), split combined ingredients and divide amounts evenly, normalize vague ingredients to common grocery-store forms, normalize units to singular, and use USDA-style units for countable foods. Return only JSON.",
       }, 
       {
         role: 'user',
@@ -126,15 +128,18 @@ async function convertToG(ingredients: ingredients[])
     
       if (unit === 'lb' || unit === 'lbs' || unit === 'pound' || unit === 'pounds'){
         console.log(`${ingredients[ingred].amount} lb/s is ${453.592 * (ingredients[ingred].amount as number)} in grams`);
+        ingredients[ingred].grams = 453.592 * (ingredients[ingred].amount as number);
       }
       else if (unit === 'oz' || unit === 'ounce' || unit === 'ounces'){
         console.log(`${ingredients[ingred].amount} lb/s is ${28.35 * (ingredients[ingred].amount as number)} in grams`);
+        ingredients[ingred].grams = 28.35 * (ingredients[ingred].amount as number);
       }
       else {
-        const result = await pool.query('SELECT elem->>"amount" as amount, elem->>"grams" as grams FROM food_with_portions, json_array_elements(portions) as elem WHERE to_tsvector("english", description) @@ websearch_to_tsquery("english", "$1") AND elem->>"unit" = "$2" order by fdc_id asc;', [ingredients[ingred].name, (unit === 'unknown' ? ingredients[ingred].name : unit)]);
+        const result = await pool.query("SELECT elem->>'amount' as amount, elem->>'grams' as grams FROM food_with_portions, json_array_elements(portions) as elem WHERE to_tsvector('english', description) @@ websearch_to_tsquery('english', $1) AND elem->>'unit' = $2 order by fdc_id asc;", [ingredients[ingred].name, (unit === 'unknown' ? ingredients[ingred].name : unit)]);
         //console.log(result);
         if (result.rows.length !== 0){
           console.log(`${ingredients[ingred].amount} ${unit === 'unknown' ? ingredients[ingred].name : unit}/s is ${(result.rows[0].grams * (ingredients[ingred].amount as number)) / result.rows[0].amount} in grams`);
+          ingredients[ingred].grams = (result.rows[0].grams * (ingredients[ingred].amount as number)) / result.rows[0].amount;
         }
         else {
           err.push({amount: ingredients[ingred].amount, unit: unit, name: ingredients[ingred].name});
@@ -150,6 +155,13 @@ async function convertToG(ingredients: ingredients[])
 
   console.log(`${err.length} wrong out of ${ingredients.length}`);
   error = err.length;
+  if (err.length === 0){
+    // query food_with_nutrients to get nutrients for 100g of said food then take nutrition numbers and multiply by grams/100 ratio
+    // for each ingred, get nutrition and save it
+  } 
+  else{
+    // throw error
+  }
   console.log(err);
 }
 
@@ -180,27 +192,38 @@ async function createTrainingData(array: any[]){
     entities.sort((a, b) => a[0] - b[0]);
     dataArray.push([array[i].original, { entities }]);
   }
-  addTrainingData("trainingData.json",dataArray);
+  addTrainingData(dataArray);
 }
 
 
-async function addTrainingData(filePath: string, data: any[]){
-  let dataset = [];
-
+async function addTrainingData(data: any[]){
+  //let dataset = [];
   try {
-      await fs.access(filePath);
-      const fileContent = await fs.readFile(filePath, 'utf-8');
-      if (fileContent.trim().length > 0) {
-          dataset = JSON.parse(fileContent);
-      }
-  } catch (error) {
-      // fs.access throws an error if the file doesn't exist
-      // This means it's a new file, so we keep dataset as an empty array []
+    for (const recipe in data){
+      await pool.query(`
+      INSERT INTO training_data (text, entities)
+      VALUES ($1, $2)
+      ON CONFLICT (text) DO NOTHING
+    `, [data[0], JSON.stringify(data[recipe].entities)]);
+    }
   }
+  catch(error){
+    console.log('could not add training data');
+  }
+  // try {
+  //     await fs.access(filePath);
+  //     const fileContent = await fs.readFile(filePath, 'utf-8');
+  //     if (fileContent.trim().length > 0) {
+  //         dataset = JSON.parse(fileContent);
+  //     }
+  // } catch (error) {
+  //     // fs.access throws an error if the file doesn't exist
+  //     // This means it's a new file, so we keep dataset as an empty array []
+  // }
 
-  dataset.push(...data);
+  //dataset.push(...data);
   //pool.query()
-  await fs.writeFile(filePath, JSON.stringify(dataset, null, 2), 'utf-8');
+  //await fs.writeFile(filePath, JSON.stringify(dataset, null, 2), 'utf-8');
 }
 
 const app: Express = express();
@@ -222,7 +245,7 @@ app.get('/api/extract', async (req, res) => {
     );
     const data = await response.json();
     //console.log(data.extendedIngredients);
-    //createTrainingData(data.extendedIngredients);
+    createTrainingData(data.extendedIngredients);
     res.json(data);
   }
 });
