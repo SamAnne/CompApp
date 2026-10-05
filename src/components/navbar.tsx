@@ -29,6 +29,9 @@ export default function TopNav (inputs: NavBarInputs)
                     <Nav className="me-auto">
                         <Nav.Link onClick={()=> navigate('/dashboard')}>About</Nav.Link>
                     </Nav>
+                    <Nav className="">
+                        <Nav.Link onClick={()=> navigate('/dashboard')}>Ansam Alsharif - 11100501</Nav.Link>
+                    </Nav>
                     { inputs.activeFilters && inputs.setShowFilters ? 
                     <Button className='navBtn' variant="outline-dark" onClick={() => inputs.setShowFilters?.(true)}>
                         Filters {inputs.activeFilters?.length > 0 && `(${inputs.activeFilters?.length})`}
