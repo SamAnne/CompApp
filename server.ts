@@ -3,7 +3,12 @@ import express, { Express, Request, Response, NextFunction, response } from 'exp
 import cors from 'cors';
 
 const app: Express = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://34.229.194.124:5173',
+  ],
+}));
 
 app.get('/api/extract', async (req, res) => {
   const { url } = req.query;
@@ -17,4 +22,4 @@ app.get('/api/extract', async (req, res) => {
 });
 
 
-app.listen(3001, () => console.log('Server running on port 3001'));
+app.listen(3000, () => console.log('Server running on port 3000'));

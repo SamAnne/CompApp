@@ -98,7 +98,7 @@ function Home() {
       try{
         setLoading(true);
         const response = await fetch(
-          `http://localhost:3001/api/extract?url=${encodeURIComponent(urlValue)}`
+          `http://34.229.194.124:3000/api/extract?url=${encodeURIComponent(urlValue)}`
         );
         const data: Recipe = await response.json();
         console.log(data);
