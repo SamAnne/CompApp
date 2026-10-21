@@ -48,6 +48,6 @@ app.get('/api/extract', async (req: Request, res: Response) => {
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // Must come after all routes
-Sentry.setupExpressErrorHandler(app);
+app.use(Sentry.expressErrorHandler());
 
 app.listen(3000, '0.0.0.0', () => console.log('Server running on port 3000'));
