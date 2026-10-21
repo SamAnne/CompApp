@@ -28,6 +28,7 @@ export default function TopNav (inputs: NavBarInputs)
                     </Navbar.Brand>
                     <Nav className="me-auto">
                         <Nav.Link onClick={()=> navigate('/dashboard')}>About</Nav.Link>
+                        <Nav.Link onClick={()=> navigate('/blog')}>Blog</Nav.Link>
                     </Nav>
                     <Nav className="">
                         <Nav.Link onClick={()=> navigate('/dashboard')}>Ansam Alsharif - 11100501</Nav.Link>
